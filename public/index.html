@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="FreshScanAI helps you scan, identify food, and assess freshness quickly using AI." />
+  <meta name="robots" content="index, follow" />
+  <title>FreshScan AI - Food Quality & Item Inspector</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- TensorFlow.js & MobileNet -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest"></script>
+
+  <style>
+    body {
+      background-color: #06110b;
+      background-image: 
+        radial-gradient(circle at 15% 20%, rgba(132, 204, 22, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 60%, rgba(34, 197, 94, 0.08) 0%, transparent 40%);
+      background-size: 100% 100%;
+      background-position: center;
+      background-attachment: fixed;
+    }
+
+    .neon-gradient-text {
+      background: linear-gradient(135deg, #ffffff 30%, #84cc16 80%, #4ade80 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .neon-border {
+      border: 1px solid rgba(132, 204, 22, 0.2);
+      box-shadow: 0 0 20px -5px rgba(132, 204, 22, 0.08);
+    }
+
+    .neon-border:hover {
+      border-color: rgba(132, 204, 22, 0.45);
+      box-shadow: 0 0 25px -4px rgba(132, 204, 22, 0.2);
+    }
+
+    .scanner-bar {
+      animation: scan 2s linear infinite;
+    }
+    @keyframes scan {
+      0% { top: 0%; }
+      50% { top: 92%; }
+      100% { top: 0%; }
+    }
+
+    @media print {
+      header, nav, button, #telemetry-modal, #feedback-modal {
+        display: none !important;
+      }
+      body {
+        background: white !important;
+        color: black !important;
+      }
+      .neon-border {
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+      }
+    }
+  </style>
+
+  <!-- Compact animated login CSS (integrated) -->
+  <style>
+    .fs-login-screen {
+      min-height: 100vh; width: 100%; display: flex; justify-content: center;
+      align-items: center; padding: 14px; position: relative; overflow: hidden;
+      isolation: isolate; color: white;
+      background: radial-gradient(circle at top left, #173d20, transparent 40%), #06110b;
+    }
+    .fs-login-screen::before, .fs-login-screen::after {
+      content: ""; position: absolute; z-index: -1; width: 360px; height: 360px;
+      border-radius: 50%; border: 1px solid rgba(163,230,53,.16);
+      box-shadow: 0 0 80px rgba(132,204,22,.08), inset 0 0 70px rgba(132,204,22,.04);
+      animation: fs-orbit 18s linear infinite; pointer-events: none;
+    }
+    .fs-login-screen::before { top: -190px; left: -130px; }
+    .fs-login-screen::after { width: 460px; height: 460px; right: -250px; bottom: -260px; animation-direction: reverse; }
+    .fs-login-ambient { position: absolute; inset: 0; overflow: hidden; z-index: -1; pointer-events: none; }
+    .fs-login-glow { position: absolute; width: 170px; height: 170px; border-radius: 50%; filter: blur(55px); opacity: .22; animation: fs-drift 12s ease-in-out infinite alternate; }
+    .fs-login-glow.one { background: #84cc16; top: 12%; left: 10%; }
+    .fs-login-glow.two { background: #10b981; right: 8%; bottom: 10%; animation-delay: -5s; }
+    .fs-login-particle { position: absolute; color: #bef264; opacity: .55; font-size: 20px; animation: fs-float 7s ease-in-out infinite; }
+    .fs-login-particle.p1 { top: 18%; left: 18%; }
+    .fs-login-particle.p2 { top: 28%; right: 18%; }
+    .fs-login-particle.p3 { bottom: 18%; left: 23%; }
+    .fs-login-particle.p4 { bottom: 26%; right: 20%; }
+    .fs-login-container {
+      width: 100%; max-width: 340px; padding: 24px 25px 20px; border-radius: 18px;
+      position: relative; background: rgba(10,28,17,.94);
+      border: 1px solid rgba(163,230,53,.3); box-shadow: 0 15px 50px rgba(0,0,0,.4);
+      backdrop-filter: blur(18px); animation: fs-card-enter .85s ease both;
+    }
+    .fs-login-container::before { content: ""; position: absolute; inset: -1px; padding: 1px; border-radius: inherit; background: linear-gradient(135deg,rgba(190,242,100,.65),transparent 35%,rgba(16,185,129,.45),transparent 80%); -webkit-mask: linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; }
+    .fs-login-logo { text-align: center; margin-bottom: 18px; }
+    .fs-login-logo-icon { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; margin: 0 auto 9px; border-radius: 14px; background: #a3e635; color: #06110b; font-size: 27px; position: relative; overflow: hidden; animation: fs-logo-pulse 3s ease-in-out infinite; box-shadow: 0 0 30px rgba(163,230,53,.22); }
+    .fs-login-logo-icon::after { content: ""; position: absolute; left: -70%; top: -30%; width: 55%; height: 160%; transform: rotate(25deg); background: rgba(255,255,255,.38); filter: blur(5px); animation: fs-shine 4s ease-in-out infinite; }
+    .fs-login-logo h1 { font-size: 24px; margin-bottom: 5px; font-weight: 700; color: #fff; letter-spacing: -.04em; }
+    .fs-login-green { color: #a3e635; }
+    .fs-login-logo p { color: #a0afa3; font-size: 12px; }
+    .fs-login-container h2 { margin-bottom: 5px; font-size: 21px; font-weight: 700; color: #fff; }
+    .fs-login-subtitle { color: #9ca3af; font-size: 12px; line-height: 1.45; margin-bottom: 17px; }
+    .fs-login-group { margin-bottom: 13px; }
+    .fs-login-container label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: bold; color: #d1d5db; }
+    .fs-login-container input[type="email"], .fs-login-container input[type="password"], .fs-login-container input[type="text"] { width: 100%; padding: 11px 12px; color: white; background: #040c07; border: 1px solid #354538; border-radius: 8px; outline: none; font-size: 13px; transition: border-color .25s,box-shadow .25s; }
+    .fs-login-container input:focus { border-color: #a3e635; box-shadow: 0 0 0 3px rgba(163,230,53,.1); }
+    .fs-login-password-box { position: relative; }
+    .fs-login-password-box input { padding-right: 65px !important; }
+    .fs-login-show-password { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); border: none; background: transparent; color: #a3e635; cursor: pointer; font-size: 12px; }
+    .fs-login-options { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 11px; }
+    .fs-login-container .fs-login-remember { display: flex; align-items: center; gap: 6px; color: #a0afa3; margin: 0; font-weight: normal; }
+    .fs-login-remember input { accent-color: #a3e635; }
+    .fs-login-forgot { color: #a3e635; text-decoration: none; white-space: nowrap; }
+    .fs-login-button { width: 100%; padding: 12px; border: none; border-radius: 8px; background: #a3e635; color: #06110b; font-size: 13px; font-weight: bold; cursor: pointer; transition: .3s; position: relative; overflow: hidden; box-shadow: 0 8px 24px rgba(132,204,22,.12); }
+    .fs-login-button:hover { background: #bef264; transform: translateY(-2px); }
+    .fs-login-button::after { content: ""; position: absolute; top: -50%; left: -80%; width: 45%; height: 200%; transform: skewX(-25deg); background: rgba(255,255,255,.35); transition: left .6s ease; }
+    .fs-login-button:hover::after { left: 140%; }
+    .fs-login-button:active { transform: translateY(0) scale(.99); }
+    #fs-login-message { display: none; margin-bottom: 12px; padding: 10px; border-radius: 8px; font-size: 12px; line-height: 1.5; }
+    .fs-login-footer { text-align: center; margin-top: 16px; color: #68776b; font-size: 11px; }
+    .fs-login-note { margin-top: 9px; color: #839286; font-size: 10px; line-height: 1.5; text-align: center; }
+    @keyframes fs-card-enter { from { opacity: 0; transform: translateY(28px) scale(.97); filter: blur(8px); } to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
+    @keyframes fs-float { 0%,100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-18px) rotate(12deg); } }
+    @keyframes fs-drift { from { transform: translate3d(-15px,-10px,0) scale(.9); } to { transform: translate3d(30px,25px,0) scale(1.15); } }
+    @keyframes fs-orbit { to { transform: rotate(360deg); } }
+    @keyframes fs-logo-pulse { 0%,100% { transform: translateY(0); box-shadow: 0 0 25px rgba(163,230,53,.18); } 50% { transform: translateY(-4px); box-shadow: 0 0 42px rgba(163,230,53,.36); } }
+    @keyframes fs-shine { 0%,20% { left: -70%; } 55%,100% { left: 140%; } }
+    @media (max-width: 450px) { .fs-login-container { padding: 22px 18px; } }
+    @media (max-height: 700px) { .fs-login-container { padding-top: 18px; padding-bottom: 16px; } .fs-login-logo { margin-bottom: 12px; } .fs-login-footer { margin-top: 12px; } .fs-login-note { margin-top: 7px; } }
+    @media (prefers-reduced-motion: reduce) { .fs-login-screen *, .fs-login-screen::before, .fs-login-screen::after { animation: none !important; transition: none !important; } }
+  </style>
+</head>
+<body class="text-slate-200 font-sans min-h-screen flex flex-col antialiased selection:bg-lime-500 selection:text-black">
+
+  <!-- ================= COMPACT ANIMATED LOGIN PAGE ================= -->
+  <section id="fs-login-screen" class="fs-login-screen">
+    <div class="fs-login-ambient" aria-hidden="true">
+      <span class="fs-login-glow one"></span>
+      <span class="fs-login-glow two"></span>
+      <span class="fs-login-particle p1">✦</span>
+      <span class="fs-login-particle p2">✧</span>
+      <span class="fs-login-particle p3">✦</span>
+      <span class="fs-login-particle p4">✧</span>
+    </div>
+    <div class="fs-login-container">
+      <div class="fs-login-logo">
+        <div class="fs-login-logo-icon">🌿</div>
+        <h1>FreshScan <span class="fs-login-green">AI</span></h1>
+        <p>Smart Food Quality Inspection</p>
+      </div>
+      <h2 id="fs-login-title">Welcome Back</h2>
+      <p class="fs-login-subtitle" id="fs-login-subtitle">Sign in to inspect food freshness.</p>
+      <form id="fs-login-form">
+        <div class="fs-login-group" id="fs-name-group" style="display:none">
+          <label for="fs-name">Full Name</label>
+          <input type="text" id="fs-name" placeholder="Enter your name" autocomplete="name" maxlength="80">
+        </div>
+        <div class="fs-login-group">
+          <label for="fs-email">Email Address</label>
+          <input type="email" id="fs-email" placeholder="Enter your email" autocomplete="username" required>
+        </div>
+        <div class="fs-login-group">
+          <label for="fs-password">Password</label>
+          <div class="fs-login-password-box">
+            <input type="password" id="fs-password" placeholder="Enter your password" autocomplete="current-password" required minlength="8">
+            <button type="button" class="fs-login-show-password" id="fs-toggle-password">Show</button>
+          </div>
+        </div>
+        <div class="fs-login-options">
+          <label class="fs-login-remember"><input type="checkbox" id="fs-remember"> Remember me</label>
+          <a href="#" class="fs-login-forgot" id="fs-forgot">Forgot password?</a>
+        </div>
+        <div id="fs-login-message" role="status" aria-live="polite"></div>
+        <button type="submit" class="fs-login-button" id="fs-submit-btn">Sign In →</button>
+      </form>
+      <p class="fs-login-note"><span id="fs-mode-text">New to FreshScan AI?</span> <a href="#" class="fs-login-forgot" id="fs-switch-mode">Create an account</a></p>
+      <div class="fs-login-footer">© <span id="fs-login-year"></span> FreshScan AI</div>
+    </div>
+  </section>
+
+  <div id="app-shell" class="hidden flex-1 flex-col min-h-screen">
+
+
+  <!-- ================= TOP NAVIGATION ================= -->
+  <header class="bg-[#06110b]/80 backdrop-blur-xl border-b border-lime-500/20 sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-2 cursor-pointer" onclick="navigateTo('home')">
+        <div class="w-9 h-9 rounded-xl bg-lime-500 flex items-center justify-center text-black font-bold text-lg shadow-[0_0_15px_rgba(132,204,22,0.4)]">
+          🍃
+        </div>
+        <span class="font-bold text-xl tracking-tight text-white">FreshScan<span class="text-lime-400">AI</span></span>
+      </div>
+
+      <nav id="nav-actions" class="flex items-center gap-3 sm:gap-4">
+        <button onclick="navigateTo('history')" class="text-sm font-medium text-slate-300 hover:text-lime-400 transition flex items-center gap-1.5">
+          <i data-lucide="history" class="w-4 h-4 text-lime-400"></i> History
+        </button>
+        <button onclick="toggleFeedbackModal()" class="text-sm font-medium text-slate-300 hover:text-lime-400 transition flex items-center gap-1.5">
+          <i data-lucide="message-square" class="w-4 h-4 text-lime-400"></i> Feedback
+        </button>
+        <span id="nav-user-name" class="hidden sm:inline text-xs text-slate-500 max-w-[120px] truncate"></span>
+        <button onclick="logout()" class="text-sm font-medium text-slate-300 hover:text-rose-400 transition flex items-center gap-1.5">
+          <i data-lucide="log-out" class="w-4 h-4 text-lime-400"></i> Logout
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ================= MAIN VIEW CONTAINER ================= -->
+  <main class="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 flex flex-col justify-center">
+
+    <!-- PAGE 1: HOME / LANDING -->
+    <section id="view-home" class="view space-y-10 py-8">
+      <div class="text-center space-y-5 max-w-2xl mx-auto">
+        <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-semibold tracking-wider uppercase border border-lime-500/40 bg-lime-950/40 text-lime-400 shadow-[0_0_15px_rgba(132,204,22,0.15)]">
+          ⚡ LEVEL UP FOOD SAFETY & RECOGNITION
+        </div>
+        <h1 class="text-4xl sm:text-6xl font-black tracking-tight leading-tight uppercase neon-gradient-text drop-shadow-sm">
+          Inspection Arena
+        </h1>
+        <p class="text-slate-400 text-base sm:text-lg">
+          Turn food quality assessment and dish identification into an instant AI experience. Smart neural nets detect food names, verify safety, and filter out non-food items.
+        </p>
+        <div class="pt-2 flex justify-center">
+          <button onclick="navigateTo('upload')" class="bg-lime-500 hover:bg-lime-400 text-black font-bold px-8 py-3.5 rounded-xl shadow-[0_0_20px_rgba(132,204,22,0.35)] hover:shadow-[0_0_25px_rgba(132,204,22,0.5)] transition-all text-base flex items-center gap-2">
+            <i data-lucide="scan" class="w-5 h-5"></i> Start Inspection
+          </button>
+        </div>
+      </div>
+
+      <!-- Features Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+        <div class="p-6 bg-[#0a1811]/90 backdrop-blur-md rounded-2xl neon-border transition duration-300">
+          <div class="w-10 h-10 rounded-lg bg-lime-950/80 text-lime-400 border border-lime-500/30 flex items-center justify-center mb-4">
+            <i data-lucide="utensils"></i>
+          </div>
+          <h3 class="font-bold text-lg text-white mb-2">Food Identification</h3>
+          <p class="text-slate-400 text-sm">Recognizes meals, fruits, vegetables, and snacks automatically from raw sensor pixels.</p>
+        </div>
+        <div class="p-6 bg-[#0a1811]/90 backdrop-blur-md rounded-2xl neon-border transition duration-300">
+          <div class="w-10 h-10 rounded-lg bg-emerald-950/80 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mb-4">
+            <i data-lucide="shield-check"></i>
+          </div>
+          <h3 class="font-bold text-lg text-white mb-2">Safety Scoring</h3>
+          <p class="text-slate-400 text-sm">Get an objective score from 0-100% on freshness, quality rating, and estimated shelf life.</p>
+        </div>
+        <div class="p-6 bg-[#0a1811]/90 backdrop-blur-md rounded-2xl neon-border transition duration-300">
+          <div class="w-10 h-10 rounded-lg bg-teal-950/80 text-teal-400 border border-teal-500/30 flex items-center justify-center mb-4">
+            <i data-lucide="volume-2"></i>
+          </div>
+          <h3 class="font-bold text-lg text-white mb-2">Voice Readout</h3>
+          <p class="text-slate-400 text-sm">Hands-free voice readout announces food identity and safety clearance in active kitchens.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 2: UPLOAD & LIVE CAMERA VIEW -->
+    <section id="view-upload" class="view hidden max-w-xl mx-auto w-full space-y-4">
+      <button onclick="navigateTo('home')" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-400 hover:text-lime-400 bg-[#0a1811]/90 px-3 py-1.5 rounded-lg border border-slate-800 transition">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Home
+      </button>
+
+      <div>
+        <h2 class="text-2xl font-bold text-white">Food Inspection Capture</h2>
+        <p class="text-slate-400 text-sm">Upload a photo or take a live camera shot of any food dish, produce, or snack.</p>
+      </div>
+
+      <!-- Capture Mode Switcher -->
+      <div class="grid grid-cols-2 gap-2 bg-[#040c07] p-1.5 rounded-xl border border-slate-800">
+        <button id="btn-tab-upload" onclick="switchCaptureMode('upload')" class="py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-2 bg-lime-500 text-black shadow-sm">
+          <i data-lucide="upload-cloud" class="w-4 h-4"></i> File Upload
+        </button>
+        <button id="btn-tab-camera" onclick="switchCaptureMode('camera')" class="py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-2 text-slate-400 hover:text-white">
+          <i data-lucide="camera" class="w-4 h-4"></i> Live Camera
+        </button>
+      </div>
+
+      <div class="bg-[#0a1811]/90 backdrop-blur-md p-6 rounded-2xl neon-border space-y-4">
+        <!-- Error Banner for Non-Food Items -->
+        <div id="rejection-box" class="hidden p-3 bg-rose-950/80 border border-rose-500/50 rounded-xl flex items-start gap-2.5 text-xs text-rose-300">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400 shrink-0 mt-0.5"></i>
+          <span id="rejection-msg">Invalid Sample: Detected non-food item. Please scan food only.</span>
+        </div>
+
+        <!-- OPTION A: Drag & Drop / File Selector -->
+        <div id="container-upload" class="space-y-4">
+          <div id="dropzone" class="border-2 border-dashed border-lime-500/30 rounded-xl p-6 text-center hover:border-lime-400 transition relative flex flex-col items-center justify-center min-h-[240px] bg-[#040c07]/70">
+            <input type="file" id="file-input" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" onchange="handleFileSelect(event)">
+            <div id="upload-placeholder" class="flex flex-col items-center">
+              <i data-lucide="image-up" class="w-10 h-10 text-slate-500 mb-2"></i>
+              <p class="text-sm font-semibold text-slate-300">Click or drag & drop food image</p>
+              <p class="text-xs text-slate-500 mt-1">Accepts meals, produce, snacks (PNG, JPG, WEBP)</p>
+            </div>
+            <img id="preview-image" src="" alt="Preview" class="hidden max-h-56 rounded-lg object-contain shadow-sm">
+          </div>
+        </div>
+
+        <!-- OPTION B: Live Camera Video Stream -->
+        <div id="container-camera" class="hidden flex flex-col items-center space-y-4">
+          <div class="relative w-full h-[260px] bg-black rounded-xl overflow-hidden border border-lime-500/40 flex items-center justify-center shadow-inner">
+            <video id="camera-feed" autoplay playsinline class="w-full h-full object-cover"></video>
+            <div class="absolute inset-8 border-2 border-lime-400/40 rounded-lg pointer-events-none flex flex-col justify-between p-2">
+              <div class="flex justify-between">
+                <span class="w-3 h-3 border-t-2 border-l-2 border-lime-400"></span>
+                <span class="w-3 h-3 border-t-2 border-r-2 border-lime-400"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="w-3 h-3 border-b-2 border-l-2 border-lime-400"></span>
+                <span class="w-3 h-3 border-b-2 border-r-2 border-lime-400"></span>
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-2 w-full">
+            <button type="button" onclick="captureSnapshot()" class="flex-1 py-2.5 bg-lime-500 hover:bg-lime-400 text-black font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 shadow-[0_0_12px_rgba(132,204,22,0.35)]">
+              <i data-lucide="aperture" class="w-4 h-4"></i> Take Snapshot
+            </button>
+            <button type="button" onclick="switchCameraFacing()" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 text-xs font-medium">
+              <i data-lucide="switch-camera" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <canvas id="camera-canvas" class="hidden"></canvas>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Custom Label / Description (Optional)</label>
+          <input type="text" id="food-label" placeholder="Leave empty to let AI name the food automatically" class="w-full px-4 py-2 border border-slate-800 rounded-lg text-sm bg-[#040c07] text-white focus:outline-none focus:border-lime-400 focus:ring-1 focus:ring-lime-400">
+        </div>
+
+        <div class="flex gap-3 pt-2">
+          <button onclick="navigateTo('home')" class="w-1/2 py-2.5 rounded-lg border border-slate-800 text-slate-300 text-sm font-medium hover:bg-slate-800/60">Cancel</button>
+          <button id="start-scan-btn" onclick="startAIAnalysis()" disabled class="w-1/2 py-2.5 rounded-lg bg-lime-500 disabled:opacity-40 disabled:cursor-not-allowed text-black text-sm font-bold hover:bg-lime-400 transition shadow-[0_0_15px_rgba(132,204,22,0.25)]">Analyze Sample</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 3: AI ANALYSIS -->
+    <section id="view-analysis" class="view hidden max-w-md mx-auto w-full text-center space-y-4">
+      <div class="text-left">
+        <button onclick="cancelAnalysis()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-400 hover:text-lime-400 bg-[#0a1811]/90 px-3 py-1.5 rounded-lg border border-slate-800 transition">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
+        </button>
+      </div>
+
+      <div class="bg-[#0a1811]/90 backdrop-blur-md p-8 rounded-2xl neon-border flex flex-col items-center">
+        <div class="relative w-60 h-60 rounded-xl overflow-hidden bg-black border border-lime-500/40 mb-6">
+          <img id="analyzing-image" src="" class="w-full h-full object-cover opacity-80" alt="Processing food">
+          <div class="scanner-bar absolute left-0 right-0 h-1 bg-lime-400 shadow-[0_0_15px_#a3e635]"></div>
+        </div>
+
+        <h3 class="text-xl font-bold text-white mb-2">Analyzing Sample...</h3>
+        <p id="analysis-step" class="text-sm text-lime-400 min-h-[20px]">Identifying food item...</p>
+
+        <div class="w-full bg-slate-800 rounded-full h-2.5 mt-6 overflow-hidden">
+          <div id="analysis-progress" class="bg-gradient-to-r from-lime-400 to-emerald-500 h-2.5 rounded-full transition-all duration-300" style="width: 25%"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 4: INSPECTION RESULT -->
+    <section id="view-result" class="view hidden max-w-2xl mx-auto w-full space-y-4">
+      <button onclick="navigateTo('home')" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-400 hover:text-lime-400 bg-[#0a1811]/90 px-3 py-1.5 rounded-lg border border-slate-800 transition">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Home
+      </button>
+
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-white">Inspection Result</h2>
+        <span id="result-status-badge" class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider"></span>
+      </div>
+
+      <div class="bg-[#0a1811]/90 backdrop-blur-md p-6 rounded-2xl neon-border space-y-6">
+        <div class="flex flex-col md:flex-row gap-6 items-center">
+          <img id="result-img" class="w-44 h-44 rounded-xl object-cover border border-lime-500/30" src="" alt="Inspected Food">
+          <div class="flex-1 space-y-3 w-full">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-xs uppercase text-slate-400 tracking-wider font-semibold">Identified Food Item:</span>
+                <span id="result-food-badge" class="px-2.5 py-0.5 rounded text-xs font-bold bg-lime-950 text-lime-400 border border-lime-500/40"></span>
+              </div>
+              <h3 id="result-title" class="text-2xl font-black text-white"></h3>
+              <p class="text-xs text-slate-400 mt-0.5" id="result-timestamp">Inspected just now</p>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs font-semibold mb-1">
+                <span class="text-slate-300">Freshness Index</span>
+                <span id="result-score" class="text-lime-400">94%</span>
+              </div>
+              <div class="w-full bg-slate-800 rounded-full h-2">
+                <div id="result-score-bar" class="h-2 rounded-full bg-gradient-to-r from-lime-400 to-emerald-500" style="width: 94%"></div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 pt-2 text-xs">
+              <div class="p-2.5 bg-[#040c07]/80 rounded-lg border border-slate-800">
+                <span class="text-slate-400 block">Estimated Shelf Life</span>
+                <span id="result-shelflife" class="font-semibold text-white text-sm">3 - 4 Days</span>
+              </div>
+              <div class="p-2.5 bg-[#040c07]/80 rounded-lg border border-slate-800">
+                <span class="text-slate-400 block">Pathogen / Mold Risk</span>
+                <span id="result-risk" class="font-semibold text-lime-400 text-sm">Low (0.4%)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-800 pt-4">
+          <h4 class="text-xs font-bold uppercase text-slate-400 mb-2">AI Diagnostic Summary</h4>
+          <p id="result-summary" class="text-sm text-slate-300 leading-relaxed"></p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button onclick="speakSafetyVerdict()" class="py-3 rounded-lg border border-lime-500/40 hover:bg-lime-950/50 bg-lime-950/20 text-lime-400 text-sm font-semibold transition flex items-center justify-center gap-2">
+            <i data-lucide="volume-2" class="w-4 h-4"></i> Voice Report
+          </button>
+          <button onclick="window.print()" class="py-3 rounded-lg border border-slate-800 hover:border-slate-700 bg-[#040c07] text-slate-300 text-sm font-semibold transition flex items-center justify-center gap-2">
+            <i data-lucide="printer" class="w-4 h-4"></i> Export PDF
+          </button>
+          <button onclick="toggleTelemetryModal()" class="py-3 rounded-lg border border-slate-800 hover:border-slate-700 bg-[#040c07] text-slate-300 text-sm font-semibold transition flex items-center justify-center gap-2">
+            <i data-lucide="cpu" class="w-4 h-4 text-lime-400"></i> Telemetry
+          </button>
+        </div>
+        <div class="pt-1 flex flex-col sm:flex-row gap-2">
+          <button onclick="navigateTo('home')" class="w-full py-2.5 rounded-lg bg-lime-500 hover:bg-lime-400 text-black text-sm font-bold transition flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(132,204,22,0.25)]">
+            <i data-lucide="home" class="w-4 h-4"></i> Return to Home
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 5: INSPECTION HISTORY -->
+    <section id="view-history" class="view hidden space-y-4">
+      <button onclick="goBack()" class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-400 hover:text-lime-400 bg-[#0a1811]/90 px-3 py-1.5 rounded-lg border border-slate-800 transition">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
+      </button>
+
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-2xl font-bold text-white">Inspection History</h2>
+          <p class="text-slate-400 text-sm">Saved diagnostic audits and food safety compliance logs.</p>
+        </div>
+        <button onclick="clearHistory()" class="text-xs text-rose-400 hover:underline">Clear History</button>
+      </div>
+
+      <div class="bg-[#0a1811]/90 backdrop-blur-md rounded-2xl neon-border overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-[#040c07]/90 text-slate-400 text-xs uppercase font-semibold border-b border-slate-800">
+              <tr>
+                <th class="px-6 py-3">Food Name</th>
+                <th class="px-6 py-3">Status</th>
+                <th class="px-6 py-3">Freshness</th>
+                <th class="px-6 py-3">Shelf Life</th>
+                <th class="px-6 py-3">Date</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body" class="divide-y border-slate-800">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+        <div id="empty-history" class="text-center py-12 hidden">
+          <i data-lucide="clipboard-list" class="w-8 h-8 text-slate-600 mx-auto mb-2"></i>
+          <p class="text-slate-400 text-sm">No inspections recorded yet.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RAW TELEMETRY MODAL -->
+    <div id="telemetry-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-[#0a1811] border border-lime-500/30 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2">
+            <i data-lucide="terminal" class="w-5 h-5 text-lime-400"></i>
+            <h3 class="font-bold text-white text-base">Inference & Model Telemetry</h3>
+          </div>
+          <button onclick="toggleTelemetryModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
+        </div>
+
+        <div class="space-y-3 text-xs font-mono">
+          <div class="p-3 bg-[#040c07] rounded-lg border border-slate-800 flex justify-between">
+            <span class="text-slate-400">Model Pipeline:</span>
+            <span class="text-lime-400">MobileNetV2 (Quantized 224x224)</span>
+          </div>
+          <div class="p-3 bg-[#040c07] rounded-lg border border-slate-800 flex justify-between">
+            <span class="text-slate-400">Inference Latency:</span>
+            <span id="telemetry-latency" class="text-white font-bold">-- ms</span>
+          </div>
+          <div>
+            <span class="text-slate-400 block mb-1">Top-3 Classified Classes:</span>
+            <div id="telemetry-classes" class="p-3 bg-[#040c07] rounded-lg border border-slate-800 space-y-1.5 text-slate-300">
+              <span class="text-slate-500">Run an analysis to inspect raw confidence metrics.</span>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="toggleTelemetryModal()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg">
+          Close Telemetry
+        </button>
+      </div>
+    </div>
+
+    <!-- FEEDBACK FORM MODAL -->
+    <div id="feedback-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-[#0a1811] border border-lime-500/30 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2">
+            <i data-lucide="message-square" class="w-5 h-5 text-lime-400"></i>
+            <h3 class="font-bold text-white text-base">Inspector Feedback & Calibration</h3>
+          </div>
+          <button onclick="toggleFeedbackModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
+        </div>
+
+        <form id="feedback-form" onsubmit="submitFeedback(event)" class="space-y-4 text-xs">
+          <div id="feedback-toast" class="hidden p-3 bg-lime-950/80 border border-lime-500/50 rounded-lg text-lime-300">
+            Thank you! Your feedback has been recorded for model recalibration.
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-300 uppercase mb-1">Auditor / User Name</label>
+            <input type="text" id="feedback-name" required placeholder="e.g., Alex Carter (QA Auditor)" class="w-full px-3 py-2 border border-slate-800 rounded-lg bg-[#040c07] text-white focus:outline-none focus:border-lime-400">
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-300 uppercase mb-1">Food Category Tested</label>
+            <select id="feedback-category" class="w-full px-3 py-2 border border-slate-800 rounded-lg bg-[#040c07] text-white focus:outline-none focus:border-lime-400">
+              <option value="produce">Fresh Produce (Fruits & Vegetables)</option>
+              <option value="meat">Meat & Poultry</option>
+              <option value="cooked">Cooked Meals / Dishes</option>
+              <option value="dairy">Dairy / Baked Goods</option>
+              <option value="other">Other Food Type</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-300 uppercase mb-1">Model Precision Rating</label>
+            <div class="flex gap-4 items-center pt-1 text-slate-300">
+              <label class="flex items-center gap-1 cursor-pointer">
+                <input type="radio" name="rating" value="5" checked class="accent-lime-400"> 5 - Spot On
+              </label>
+              <label class="flex items-center gap-1 cursor-pointer">
+                <input type="radio" name="rating" value="4" class="accent-lime-400"> 4 - Accurate
+              </label>
+              <label class="flex items-center gap-1 cursor-pointer">
+                <input type="radio" name="rating" value="3" class="accent-lime-400"> 3 - Fair
+              </label>
+              <label class="flex items-center gap-1 cursor-pointer">
+                <input type="radio" name="rating" value="1" class="accent-lime-400"> 1 - Misclassified
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-semibold text-slate-300 uppercase mb-1">Observations / Calibration Notes</label>
+            <textarea id="feedback-notes" rows="3" placeholder="Tell us if freshness score, shelf-life, or item label matched physical inspection..." class="w-full px-3 py-2 border border-slate-800 rounded-lg bg-[#040c07] text-white focus:outline-none focus:border-lime-400"></textarea>
+          </div>
+
+          <div class="flex gap-2 pt-2">
+            <button type="button" onclick="toggleFeedbackModal()" class="w-1/2 py-2.5 rounded-lg border border-slate-800 text-slate-300 font-medium hover:bg-slate-800/60">
+              Cancel
+            </button>
+            <button type="submit" class="w-1/2 py-2.5 bg-lime-500 hover:bg-lime-400 text-black font-bold rounded-lg transition shadow-[0_0_12px_rgba(132,204,22,0.35)]">
+              Submit Review
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+  </div><!-- /#app-shell -->
+
+  <!-- Authentication (talks to the FreshScan AI backend) -->
+  <script>
+    // ---------- shared helpers ----------
+    async function api(path, options = {}) {
+      const init = { method: options.method || 'GET', headers: {}, credentials: 'same-origin' };
+      if (options.body !== undefined) {
+        init.headers['Content-Type'] = 'application/json';
+        init.body = JSON.stringify(options.body);
+      }
+      let res;
+      try { res = await fetch(path, init); }
+      catch (e) { const err = new Error('Cannot reach the server. Is the backend running?'); err.status = 0; throw err; }
+      let data = {};
+      try { data = await res.json(); } catch (e) { /* non-JSON */ }
+      if (!res.ok) {
+        const err = new Error(data.error === 'not_food' ? data.message : (data.error || data.message || 'Request failed'));
+        err.status = res.status; err.data = data;
+        if (res.status === 401 && !path.startsWith('/api/auth/')) showLogin('Your session expired. Please sign in again.');
+        throw err;
+      }
+      return data;
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // ---------- login screen ----------
+    const loginForm = document.getElementById("fs-login-form");
+    const loginScreen = document.getElementById("fs-login-screen");
+    const passwordInput = document.getElementById("fs-password");
+    const togglePassword = document.getElementById("fs-toggle-password");
+    const loginMessage = document.getElementById("fs-login-message");
+    let authMode = 'login';
+    window.currentUser = null;
+    document.getElementById("fs-login-year").textContent = new Date().getFullYear();
+
+    togglePassword.addEventListener("click", function () {
+      const show = passwordInput.type === "password";
+      passwordInput.type = show ? "text" : "password";
+      togglePassword.textContent = show ? "Hide" : "Show";
+    });
+
+    function showLoginMessage(message, success) {
+      loginMessage.style.display = "block";
+      loginMessage.style.color = success ? "#bef264" : "#fdba74";
+      loginMessage.style.background = success ? "#18351d" : "#38251b";
+      loginMessage.textContent = message;
+    }
+
+    function setAuthMode(mode) {
+      authMode = mode;
+      const reg = mode === 'register';
+      document.getElementById('fs-name-group').style.display = reg ? 'block' : 'none';
+      document.getElementById('fs-login-title').textContent = reg ? 'Create Account' : 'Welcome Back';
+      document.getElementById('fs-login-subtitle').textContent = reg ? 'Sign up to start inspecting food freshness.' : 'Sign in to inspect food freshness.';
+      document.getElementById('fs-submit-btn').textContent = reg ? 'Create Account →' : 'Sign In →';
+      document.getElementById('fs-mode-text').textContent = reg ? 'Already have an account?' : 'New to FreshScan AI?';
+      document.getElementById('fs-switch-mode').textContent = reg ? 'Sign in' : 'Create an account';
+      passwordInput.autocomplete = reg ? 'new-password' : 'current-password';
+      loginMessage.style.display = 'none';
+    }
+    document.getElementById('fs-switch-mode').addEventListener('click', function (e) {
+      e.preventDefault();
+      setAuthMode(authMode === 'login' ? 'register' : 'login');
+    });
+
+    function showApp(user) {
+      window.currentUser = user;
+      const nameEl = document.getElementById('nav-user-name');
+      if (nameEl) nameEl.textContent = user.name || user.email;
+      loginScreen.style.display = "none";
+      const appShell = document.getElementById("app-shell");
+      appShell.classList.remove("hidden");
+      appShell.classList.add("flex");
+      if (typeof navigateTo === "function") navigateTo("home", true);
+    }
+
+    function showLogin(message) {
+      window.currentUser = null;
+      if (typeof stopCamera === 'function') stopCamera();
+      const appShell = document.getElementById("app-shell");
+      appShell.classList.add("hidden");
+      appShell.classList.remove("flex");
+      loginScreen.style.display = "";
+      passwordInput.value = '';
+      if (message) showLoginMessage(message, false); else loginMessage.style.display = 'none';
+    }
+
+    async function logout() {
+      try { await api('/api/auth/logout', { method: 'POST', body: {} }); } catch (e) { /* ignore */ }
+      if (typeof historyData !== 'undefined') historyData = [];
+      showLogin();
+    }
+
+    loginForm.addEventListener("submit", async function (event) {
+      event.preventDefault();
+      const email = document.getElementById("fs-email").value.trim();
+      const password = passwordInput.value;
+      if (!email || !password) { showLoginMessage("Please enter your email and password.", false); return; }
+
+      const submitBtn = document.getElementById('fs-submit-btn');
+      submitBtn.disabled = true;
+      try {
+        const body = { email, password, remember: document.getElementById('fs-remember').checked };
+        if (authMode === 'register') body.name = document.getElementById('fs-name').value.trim();
+        const data = await api(authMode === 'register' ? '/api/auth/register' : '/api/auth/login', { method: 'POST', body });
+        showLoginMessage("Opening FreshScan AI...", true);
+        setTimeout(() => showApp(data.user), 350);
+      } catch (err) {
+        showLoginMessage(err.message, false);
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    async function completeReset(token) {
+      const pw = window.prompt('Enter a new password (minimum 8 characters):');
+      if (!pw) return;
+      try {
+        const data = await api('/api/auth/reset', { method: 'POST', body: { token, password: pw } });
+        showLoginMessage(data.message, true);
+      } catch (err) { showLoginMessage(err.message, false); }
+    }
+
+    document.getElementById("fs-forgot").addEventListener("click", async function (event) {
+      event.preventDefault();
+      const email = document.getElementById("fs-email").value.trim();
+      if (!email) { showLoginMessage("Enter your email above first, then click 'Forgot password?'.", false); return; }
+      try {
+        const data = await api('/api/auth/forgot', { method: 'POST', body: { email } });
+        showLoginMessage(data.message, true);
+        if (data.devToken) completeReset(data.devToken); // dev mode only (EXPOSE_RESET_TOKEN=true)
+      } catch (err) { showLoginMessage(err.message, false); }
+    });
+
+    // Restore an existing session (cookie) on page load, or finish a reset link
+    (async function restoreSession() {
+      const params = new URLSearchParams(location.search);
+      if (params.get('reset')) {
+        const token = params.get('reset');
+        history.replaceState({}, '', location.pathname);
+        completeReset(token);
+        return;
+      }
+      try {
+        const data = await api('/api/auth/me');
+        showApp(data.user);
+      } catch (e) { /* not signed in: stay on login */ }
+    })();
+  </script>
+
+  <!-- ================= LOGIC & CAMERA STREAM CONTROLLER ================= -->
+  <script>
+    let selectedImage = null;
+    let currentResult = null;
+    let currentView = 'home';
+    let navigationStack = ['home'];
+    let historyData = []; // loaded from the backend
+
+    let cameraStream = null;
+    let facingMode = 'environment';
+    let mobilenetModel = null;
+    let lastPredictions = [];
+
+    const delay = ms => new Promise(res => setTimeout(res, ms));
+
+    function formatFoodName(rawName) {
+      if (!rawName) return "Food Item";
+      // Take first descriptor from comma-separated lists and capitalize each word
+      return rawName
+        .split(',')[0]
+        .trim()
+        .split(' ')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ');
+    }
+
+    function toggleTelemetryModal() {
+      const modal = document.getElementById('telemetry-modal');
+      modal.classList.toggle('hidden');
+      lucide.createIcons();
+    }
+
+    function toggleFeedbackModal() {
+      const modal = document.getElementById('feedback-modal');
+      modal.classList.toggle('hidden');
+      document.getElementById('feedback-toast').classList.add('hidden');
+      lucide.createIcons();
+    }
+
+    async function submitFeedback(e) {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('feedback-name').value.trim(),
+        category: document.getElementById('feedback-category').value,
+        rating: Number(document.querySelector('input[name="rating"]:checked').value),
+        notes: document.getElementById('feedback-notes').value.trim()
+      };
+      try {
+        await api('/api/feedback', { method: 'POST', body: payload });
+      } catch (err) {
+        alert('Could not send feedback: ' + err.message);
+        return;
+      }
+      document.getElementById('feedback-toast').classList.remove('hidden');
+      setTimeout(() => {
+        document.getElementById('feedback-form').reset();
+        toggleFeedbackModal();
+      }, 1200);
+    }
+
+    function speakSafetyVerdict(customText = null) {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+
+      let speechText = customText;
+      if (!speechText && currentResult) {
+        speechText = `Identified ${currentResult.title}. Freshness rating is ${currentResult.score} percent. Estimated shelf life is ${currentResult.shelfLife}. Status: ${currentResult.status}.`;
+      }
+
+      if (!speechText) return;
+
+      const utterance = new SpeechSynthesisUtterance(speechText);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.lang = 'en-US';
+      window.speechSynthesis.speak(utterance);
+    }
+
+    async function initVisionModel() {
+      try {
+        mobilenetModel = await mobilenet.load({ version: 2, alpha: 1.0 });
+        console.log("Vision classification model active.");
+      } catch (err) {
+        console.warn("MobileNet load error:", err);
+      }
+    }
+    initVisionModel();
+
+    lucide.createIcons();
+
+    function navigateTo(viewId, isBackAction = false) {
+      if (currentView === 'upload' && viewId !== 'upload') {
+        stopCamera();
+      }
+
+      if (viewId === 'home') {
+        navigationStack = ['home'];
+        window.history.pushState({ view: 'home' }, '', '#home');
+      } else if (!isBackAction) {
+        if (navigationStack[navigationStack.length - 1] !== viewId) {
+          navigationStack.push(viewId);
+          window.history.pushState({ view: viewId }, '', `#${viewId}`);
+        }
+      }
+
+      currentView = viewId;
+
+      document.querySelectorAll('.view').forEach(el => el.classList.add('hidden'));
+      const targetView = document.getElementById(`view-${viewId}`);
+      if (targetView) targetView.classList.remove('hidden');
+
+      if (viewId === 'history') loadHistory();
+
+      window.scrollTo(0, 0);
+      lucide.createIcons();
+    }
+
+    function goBack() {
+      if (currentView === 'upload' || currentView === 'result') {
+        navigateTo('home');
+        return;
+      }
+      if (currentView === 'analysis') {
+        cancelAnalysis();
+        return;
+      }
+      if (navigationStack.length > 1) {
+        navigationStack.pop();
+        const previousView = navigationStack[navigationStack.length - 1];
+        navigateTo(previousView, true);
+      } else {
+        navigateTo('home');
+      }
+    }
+
+    function cancelAnalysis() {
+      navigateTo('upload');
+    }
+
+    window.addEventListener('popstate', (e) => {
+      if (e.state && e.state.view) {
+        if (e.state.view === 'analysis') {
+          navigateTo('upload');
+        } else {
+          navigateTo(e.state.view, true);
+        }
+      } else {
+        goBack();
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && currentView !== 'home') {
+        goBack();
+      }
+    });
+
+    function switchCaptureMode(mode) {
+      const tabUpload = document.getElementById('btn-tab-upload');
+      const tabCamera = document.getElementById('btn-tab-camera');
+      const containerUpload = document.getElementById('container-upload');
+      const containerCamera = document.getElementById('container-camera');
+      document.getElementById('rejection-box').classList.add('hidden');
+
+      if (mode === 'camera') {
+        tabCamera.className = "py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-2 bg-lime-500 text-black shadow-sm";
+        tabUpload.className = "py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-2 text-slate-400 hover:text-white";
+        containerUpload.classList.add('hidden');
+        containerCamera.classList.remove('hidden');
+        startCamera();
+      } else {
+        tabUpload.className = "py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-2 bg-lime-500 text-black shadow-sm";
+        tabCamera.className = "py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-2 text-slate-400 hover:text-white";
+        containerCamera.classList.add('hidden');
+        containerUpload.classList.remove('hidden');
+        stopCamera();
+      }
+      lucide.createIcons();
+    }
+
+    async function startCamera() {
+      stopCamera();
+      try {
+        const constraints = {
+          video: {
+            facingMode: facingMode,
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        };
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const videoElement = document.getElementById('camera-feed');
+        videoElement.srcObject = cameraStream;
+      } catch (err) {
+        alert("Camera access denied or unavailable: " + err.message);
+        switchCaptureMode('upload');
+      }
+    }
+
+    function stopCamera() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+      }
+    }
+
+    function switchCameraFacing() {
+      facingMode = facingMode === 'environment' ? 'user' : 'environment';
+      startCamera();
+    }
+
+    function captureSnapshot() {
+      const video = document.getElementById('camera-feed');
+      const canvas = document.getElementById('camera-canvas');
+
+      if (!video.videoWidth) return;
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      selectedImage = canvas.toDataURL('image/jpeg', 0.8);
+
+      stopCamera();
+      const preview = document.getElementById('preview-image');
+      preview.src = selectedImage;
+      preview.classList.remove('hidden');
+      document.getElementById('upload-placeholder').classList.add('hidden');
+      document.getElementById('start-scan-btn').disabled = false;
+      document.getElementById('rejection-box').classList.add('hidden');
+
+      switchCaptureMode('upload');
+    }
+
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          selectedImage = e.target.result;
+          const preview = document.getElementById('preview-image');
+          preview.src = selectedImage;
+          preview.classList.remove('hidden');
+          document.getElementById('upload-placeholder').classList.add('hidden');
+          document.getElementById('start-scan-btn').disabled = false;
+          document.getElementById('rejection-box').classList.add('hidden');
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // ---- Image helpers (run in the browser) ----
+    function computeImageFeatures(imgEl) {
+      const size = 64;
+      const c = document.createElement('canvas');
+      c.width = size; c.height = size;
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(imgEl, 0, 0, size, size);
+      const d = ctx.getImageData(0, 0, size, size).data;
+      let sumV = 0, sumS = 0, dark = 0, brown = 0;
+      const n = size * size;
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b), delta = max - min;
+        const v = max, s = max === 0 ? 0 : delta / max;
+        let h = 0;
+        if (delta !== 0) {
+          if (max === r) h = ((g - b) / delta) % 6;
+          else if (max === g) h = (b - r) / delta + 2;
+          else h = (r - g) / delta + 4;
+          h *= 60; if (h < 0) h += 360;
+        }
+        sumV += v; sumS += s;
+        if (v < 0.2) dark++;
+        if (h >= 15 && h <= 45 && s > 0.25 && v >= 0.2 && v <= 0.6) brown++;
+      }
+      return { brightness: sumV / n, saturation: sumS / n, darkRatio: dark / n, brownRatio: brown / n };
+    }
+
+    // Downscale before upload (keeps requests small and history fast)
+    function makeUploadImage(imgEl) {
+      const max = 640;
+      const w = imgEl.naturalWidth || imgEl.width, h = imgEl.naturalHeight || imgEl.height;
+      const k = Math.min(1, max / Math.max(w, h));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(h * k));
+      c.getContext('2d').drawImage(imgEl, 0, 0, c.width, c.height);
+      return c.toDataURL('image/jpeg', 0.8);
+    }
+
+    // ---- MobileNet classification (browser) ----
+    async function classifyImage(imgElement) {
+      if (!mobilenetModel) {
+        mobilenetModel = await mobilenet.load({ version: 2, alpha: 1.0 });
+      }
+      const t0 = performance.now();
+      const predictions = await mobilenetModel.classify(imgElement, 5);
+      const latency = Math.round(performance.now() - t0);
+      lastPredictions = predictions;
+
+      const latencyEl = document.getElementById('telemetry-latency');
+      if (latencyEl) latencyEl.innerText = `${latency} ms`;
+      const classBox = document.getElementById('telemetry-classes');
+      if (classBox) {
+        classBox.innerHTML = predictions.slice(0, 3).map((p, i) => `
+          <div class="flex justify-between items-center py-0.5">
+            <span>#${i + 1} ${escapeHtml(p.className.split(',')[0])}</span>
+            <span class="text-lime-400 font-bold">${(p.probability * 100).toFixed(1)}%</span>
+          </div>
+        `).join('');
+      }
+      return { predictions, latency };
+    }
+
+    function showRejection(message) {
+      navigateTo('upload');
+      document.getElementById('rejection-msg').innerText = message;
+      document.getElementById('rejection-box').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    async function startAIAnalysis() {
+      if (!selectedImage) return;
+
+      const img = document.getElementById('analyzing-image');
+      const stepEl = document.getElementById('analysis-step');
+      const progressEl = document.getElementById('analysis-progress');
+
+      navigateTo('analysis');
+      stepEl.innerText = "Analyzing composition with neural network...";
+      progressEl.style.width = "30%";
+
+      await new Promise((resolve) => {
+        img.onload = () => resolve();
+        img.src = selectedImage;
+        if (img.complete) resolve();
+      });
+
+      try {
+        const { predictions, latency } = await classifyImage(img);
+
+        stepEl.innerText = "Scanning freshness & surface texture...";
+        progressEl.style.width = "65%";
+        const features = computeImageFeatures(img);
+
+        stepEl.innerText = "Calculating freshness index and microbial safety markers...";
+        progressEl.style.width = "90%";
+
+        const data = await api('/api/scans', {
+          method: 'POST',
+          body: {
+            image: makeUploadImage(img),
+            predictions: predictions.map(p => ({ className: p.className, probability: p.probability })),
+            features,
+            label: document.getElementById('food-label').value.trim(),
+            latencyMs: latency
+          }
+        });
+        progressEl.style.width = "100%";
+        await delay(300);
+        completeInspection(data.scan);
+      } catch (err) {
+        console.error("Analysis pipeline error:", err);
+        if (err.status === 422 && err.data && err.data.error === 'not_food') {
+          await delay(400);
+          showRejection(err.message);
+          speakSafetyVerdict(`Sample rejected. Detected non-food item: ${err.data.detectedName}.`);
+        } else if (err.status === 401) {
+          /* api() already returned the user to the login screen */
+        } else {
+          showRejection('Analysis failed: ' + err.message);
+        }
+      }
+    }
+
+    function completeInspection(scan) {
+      const isFresh = scan.status === 'Passed / Safe';
+      const when = new Date(scan.createdAt);
+      currentResult = {
+        id: scan.id,
+        title: scan.title,
+        image: selectedImage,
+        score: scan.score,
+        status: scan.status,
+        shelfLife: scan.shelfLife,
+        risk: scan.risk,
+        summary: scan.summary,
+        date: when.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      };
+
+      document.getElementById('result-img').src = currentResult.image;
+      document.getElementById('result-title').innerText = currentResult.title;
+      document.getElementById('result-food-badge').innerText = currentResult.title;
+      document.getElementById('result-timestamp').innerText = `Inspected on ${currentResult.date}`;
+      document.getElementById('result-score').innerText = `${currentResult.score}%`;
+      document.getElementById('result-score-bar').style.width = `${currentResult.score}%`;
+      document.getElementById('result-shelflife').innerText = currentResult.shelfLife;
+      document.getElementById('result-risk').innerText = currentResult.risk;
+      document.getElementById('result-summary').innerText = currentResult.summary;
+
+      const badge = document.getElementById('result-status-badge');
+      if (isFresh) {
+        badge.innerText = "SAFE TO CONSUME";
+        badge.className = "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-lime-950/80 border border-lime-500/50 text-lime-400";
+      } else {
+        badge.innerText = scan.status === 'Spoilage Suspected' ? "SPOILAGE SUSPECTED" : "CAUTION ADVISED";
+        badge.className = "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-950/80 border border-rose-500/50 text-rose-300";
+      }
+
+      // Reset inputs
+      document.getElementById('preview-image').src = "";
+      document.getElementById('preview-image').classList.add('hidden');
+      document.getElementById('upload-placeholder').classList.remove('hidden');
+      document.getElementById('start-scan-btn').disabled = true;
+      document.getElementById('food-label').value = "";
+      selectedImage = null;
+
+      navigateTo('result');
+      speakSafetyVerdict();
+    }
+
+    async function loadHistory() {
+      try {
+        const data = await api('/api/scans?limit=50');
+        historyData = data.scans.map(s => ({
+          ...s,
+          date: new Date(s.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+        }));
+      } catch (err) {
+        console.warn('Could not load history:', err.message);
+        historyData = [];
+      }
+      renderHistoryTable();
+    }
+
+    function renderHistoryTable() {
+      const tbody = document.getElementById('history-table-body');
+      const emptyState = document.getElementById('empty-history');
+      tbody.innerHTML = '';
+
+      if (historyData.length === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+
+      historyData.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-800/40 transition";
+        tr.innerHTML = `
+          <td class="px-6 py-4 flex items-center gap-3">
+            ${item.image ? `<img src="${escapeHtml(item.image)}" class="w-10 h-10 rounded-lg object-cover border border-slate-700">` : `<div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-xs">🍽️</div>`}
+            <span class="font-medium text-white">${escapeHtml(item.title)}</span>
+          </td>
+          <td class="px-6 py-4">
+            <span class="px-2.5 py-1 text-xs font-semibold rounded-full ${item.score >= 75 ? 'bg-lime-950/80 border border-lime-500/40 text-lime-300' : 'bg-rose-950/70 border border-rose-500/40 text-rose-300'}">
+              ${escapeHtml(item.status)}
+            </span>
+          </td>
+          <td class="px-6 py-4 font-semibold text-lime-400">${Number(item.score)}%</td>
+          <td class="px-6 py-4 text-xs">${escapeHtml(item.shelfLife)}</td>
+          <td class="px-6 py-4 text-xs text-slate-400">${escapeHtml(item.date)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function clearHistory() {
+      if (!confirm("Are you sure you want to clear all inspection history?")) return;
+      try {
+        await api('/api/scans', { method: 'DELETE' });
+        historyData = [];
+        renderHistoryTable();
+      } catch (err) {
+        alert('Could not clear history: ' + err.message);
+      }
+    }
+
+    // App Initialization
+    window.history.replaceState({ view: 'home' }, '', '#home');
+    navigateTo('home', true);
+  </script>
+</body>
+</html>
